@@ -3272,6 +3272,26 @@
 		)
 		(uuid "51c8690a-f6f5-498f-a796-74afc3ed7165")
 	)
+	(text_box "Add dip switch for boot, reset, extra 1, 2. Find usb C compatible with UART over usb and try to get rid of through hole components."
+		(exclude_from_sim no)
+		(at 93.98 144.145 0)
+		(size 45.72 10.7803)
+		(margins 0.9525 0.9525 0.9525 0.9525)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "6e5556f8-3d67-4d34-a51b-f9925d498ac3")
+	)
 	(text_box "Note: Should be Providing 1A of constant current to the LED, as configured by the 0.1Ohm sense resistor."
 		(exclude_from_sim no)
 		(at 20.32 67.945 0)
@@ -3351,6 +3371,26 @@
 			(justify left top)
 		)
 		(uuid "9787af90-0b6f-4142-9b0e-4262d42de1ff")
+	)
+	(text_box "TODO:\nPossibly a pulldown on IO 5? (Check for internal within AL8860)\nLowpass filters on IO 6 and IO 7, use (5.1k ohm resistors and 100nF caps)\nLarge Planes on pin 4 of U3 and pin 9 of U2 (dunno how to do dat)\npullup on IO 9/Boot?\nDo that math thing for switching time on the AL8860\n"
+		(exclude_from_sim no)
+		(at 79.375 163.195 0)
+		(size 84.455 14.1714)
+		(margins 0.9525 0.9525 0.9525 0.9525)
+		(stroke
+			(width 0)
+			(type solid)
+		)
+		(fill
+			(type none)
+		)
+		(effects
+			(font
+				(size 1.27 1.27)
+			)
+			(justify left top)
+		)
+		(uuid "a3ebbfe4-9f13-4f2b-80a1-f6197c282461")
 	)
 	(text_box "Question: Do I need pull ups and downs? E1 and E2 would only hold switches, the PWM signal to the AL8860QMP-13 is driven between 0.3-2.5V on CTRL"
 		(exclude_from_sim no)
@@ -3451,6 +3491,12 @@
 		(diameter 0)
 		(color 0 0 0 0)
 		(uuid "8634dd00-5544-4475-8981-ceaa54a6ad70")
+	)
+	(junction
+		(at 157.48 121.92)
+		(diameter 0)
+		(color 0 0 0 0)
+		(uuid "8a3f9c90-a862-428b-ac0a-4964d4b76ed6")
 	)
 	(junction
 		(at 40.64 40.64)
@@ -3582,6 +3628,16 @@
 	)
 	(wire
 		(pts
+			(xy 189.23 116.84) (xy 153.67 116.84)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "10d4d7d7-9383-40ad-a5a7-f5d6a68bcf46")
+	)
+	(wire
+		(pts
 			(xy 170.18 41.91) (xy 170.18 44.45)
 		)
 		(stroke
@@ -3589,6 +3645,16 @@
 			(type default)
 		)
 		(uuid "121fa3b1-55f1-48a2-8553-d4dd0216d67d")
+	)
+	(wire
+		(pts
+			(xy 190.5 100.33) (xy 189.23 100.33)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "1578cb80-2bd8-42eb-b1cf-f58da6258bdd")
 	)
 	(wire
 		(pts
@@ -3609,6 +3675,16 @@
 			(type default)
 		)
 		(uuid "202d1530-3727-4826-80e9-bbfbcf931251")
+	)
+	(wire
+		(pts
+			(xy 168.91 114.3) (xy 153.67 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "27738591-96eb-4726-81a4-62727821d70e")
 	)
 	(wire
 		(pts
@@ -3942,6 +4018,16 @@
 	)
 	(wire
 		(pts
+			(xy 157.48 121.92) (xy 153.67 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "c5c8529f-402a-4762-a5a9-c8150c1a4198")
+	)
+	(wire
+		(pts
 			(xy 144.78 39.37) (xy 134.62 39.37)
 		)
 		(stroke
@@ -3949,6 +4035,26 @@
 			(type default)
 		)
 		(uuid "c7f9dd98-3d9c-410b-b5e4-0ce1357a2864")
+	)
+	(wire
+		(pts
+			(xy 168.91 100.33) (xy 168.91 114.3)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ca521b85-a41c-4186-a070-f28e95f72709")
+	)
+	(wire
+		(pts
+			(xy 163.83 121.92) (xy 157.48 121.92)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "db5c1666-3438-4352-87c6-8899657c8817")
 	)
 	(wire
 		(pts
@@ -3989,6 +4095,16 @@
 			(type default)
 		)
 		(uuid "ea2e5b3c-5b91-471d-8f66-08d7434c4e07")
+	)
+	(wire
+		(pts
+			(xy 189.23 100.33) (xy 189.23 116.84)
+		)
+		(stroke
+			(width 0)
+			(type default)
+		)
+		(uuid "ea94eb4b-ab1a-48dd-ae42-16f86cf425e6")
 	)
 	(wire
 		(pts
@@ -4190,7 +4306,7 @@
 	)
 	(global_label "EXTRA1"
 		(shape input)
-		(at 153.67 114.3 0)
+		(at 168.91 100.33 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -4200,7 +4316,7 @@
 		)
 		(uuid "8c4de830-2c3b-4bb6-9c20-6ef4452d1e36")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 163.5494 114.3 0)
+			(at 178.7894 100.33 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4262,7 +4378,7 @@
 	)
 	(global_label "EXTRA2"
 		(shape input)
-		(at 153.67 116.84 0)
+		(at 190.5 100.33 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -4272,7 +4388,7 @@
 		)
 		(uuid "9fce47bf-0f08-4e46-8864-30177c27a2ef")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 163.5494 116.84 0)
+			(at 200.3794 100.33 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -4310,7 +4426,7 @@
 	)
 	(global_label "CTRL"
 		(shape input)
-		(at 153.67 121.92 0)
+		(at 163.83 121.92 0)
 		(fields_autoplaced yes)
 		(effects
 			(font
@@ -4320,7 +4436,7 @@
 		)
 		(uuid "a673ae99-7928-4f99-aa66-b3df70204648")
 		(property "Intersheetrefs" "${INTERSHEET_REFS}"
-			(at 161.1909 121.92 0)
+			(at 171.3509 121.92 0)
 			(hide yes)
 			(show_name no)
 			(do_not_autoplace no)
@@ -6543,6 +6659,88 @@
 		)
 	)
 	(symbol
+		(lib_id "Device:R")
+		(at 157.48 125.73 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "775b4d22-6bbb-4dee-9788-c23e85699801")
+		(property "Reference" "R4"
+			(at 160.02 124.4599 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Value" "5.1K"
+			(at 160.02 126.9999 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+				(justify left)
+			)
+		)
+		(property "Footprint" ""
+			(at 155.702 125.73 90)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 157.48 125.73 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Resistor"
+			(at 157.48 125.73 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "59579d25-9667-4bc6-b847-ea9165b1f72e")
+		)
+		(pin "2"
+			(uuid "90994423-d0ef-4a88-9264-23f6285c403d")
+		)
+		(instances
+			(project "MQTT LED"
+				(path "/af5da840-081d-4455-9dfc-b7bd95cd2e56"
+					(reference "R4")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
 		(lib_id "Device:L")
 		(at 57.15 33.02 90)
 		(unit 1)
@@ -7131,6 +7329,84 @@
 			(project "MQTT LED"
 				(path "/af5da840-081d-4455-9dfc-b7bd95cd2e56"
 					(reference "H1")
+					(unit 1)
+				)
+			)
+		)
+	)
+	(symbol
+		(lib_id "power:GND")
+		(at 157.48 129.54 0)
+		(unit 1)
+		(body_style 1)
+		(exclude_from_sim no)
+		(in_bom yes)
+		(on_board yes)
+		(in_pos_files yes)
+		(dnp no)
+		(fields_autoplaced yes)
+		(uuid "942e41cd-fecd-43c0-a1fa-858e6400278d")
+		(property "Reference" "#PWR014"
+			(at 157.48 135.89 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Value" "GND"
+			(at 157.48 134.62 0)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Footprint" ""
+			(at 157.48 129.54 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Datasheet" ""
+			(at 157.48 129.54 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(property "Description" "Power symbol creates a global label with name \"GND\" , ground"
+			(at 157.48 129.54 0)
+			(hide yes)
+			(show_name no)
+			(do_not_autoplace no)
+			(effects
+				(font
+					(size 1.27 1.27)
+				)
+			)
+		)
+		(pin "1"
+			(uuid "23a085fc-621c-4105-a948-d34d322c2f71")
+		)
+		(instances
+			(project "MQTT LED"
+				(path "/af5da840-081d-4455-9dfc-b7bd95cd2e56"
+					(reference "#PWR014")
 					(unit 1)
 				)
 			)

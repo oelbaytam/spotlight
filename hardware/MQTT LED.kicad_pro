@@ -537,7 +537,7 @@
     "last_paths": {
       "idf": "",
       "netlist": "",
-      "plot": "gerber/",
+      "plot": "../../Plots/",
       "specctra_dsn": "",
       "vrml": ""
     },
@@ -715,7 +715,7 @@
         "uuid": "af5da840-081d-4455-9dfc-b7bd95cd2e56"
       }
     ],
-    "used_designators": "#PWR14",
+    "used_designators": "#PWR14,R4",
     "variants": []
   },
   "sheets": [
