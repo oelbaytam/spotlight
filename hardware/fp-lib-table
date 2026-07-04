@@ -1,5 +1,0 @@
-(fp_lib_table
-	(version 7)
-	(lib (name "EasyEDA_Lib") (type "EasyEDA / JLCEDA Pro") (uri "${KIPRJMOD}/EasyEDA_Lib/EasyEDA_Lib.elibz") (options "") (descr ""))
-	(lib (name "hardware") (type "KiCad") (uri "/Users/omar/Programming/spotlight/hardware") (options "") (descr ""))
-)
