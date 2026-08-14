@@ -1,100 +1,184 @@
-#include <stdio.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "freertos/semphr.h"
+#include "led_driver.h"
 #include "driver/ledc.h"
 #include "esp_log.h"
-#include "led_driver.h"
+#include "freertos/projdefs.h"
+#include "freertos/queue.h"
+#include "freertos/task.h"
+#include "hal/ledc_types.h"
+#include "portmacro.h"
+#include "sdkconfig.h"
 
-#define LEDC_LS_MODE           LEDC_LOW_SPEED_MODE
-#define LEDC_LS_TIMER          LEDC_TIMER_1
-#define LEDC_LS_CH0_GPIO       (10)
-#define LEDC_LS_CH0_CHANNEL    LEDC_CHANNEL_0
+// Hardware Configuration from Kconfig / sdkconfig
+#define LEDC_MODE LEDC_LOW_SPEED_MODE
+#define LEDC_TIMER ((ledc_timer_t)CONFIG_SPOTLIGHT_LEDC_TIMER)
+#define LEDC_CHANNEL LEDC_CHANNEL_0
+#define LEDC_GPIO (CONFIG_SPOTLIGHT_LED_GPIO)
+#define LEDC_FREQ_HZ (CONFIG_SPOTLIGHT_PWM_FREQ_HZ)
+#define LEDC_DUTY_RES LEDC_TIMER_10_BIT // 10-bit resolution (0..1023)
+#define LEDC_MAX_DUTY                                                          \
+  (2 << (LEDC_DUTY_RES - 1)) - 1 // 2**LEDC_DUTY_RES - 1 for max duty cycle
+#define LEDC_SIGNAL_TIME_SEC 20  // Total signal duration in seconds
+#define LEDC_SIGNAL_TIME_MS LEDC_SIGNAL_TIME_SEC * 1000
 
-#define LEDC_MAX_DUTY          (600)   // The maximum duty of a 10-bit resolution PWM is 1023.
-#define LEDC_FADE_TIME         (3000)   // How long each fade should take.
-#define LEDC_TOTAL_DURATION    (30000)  //  Minutes in Milliseconds.
+static const char *TAG = "LED_DRIVER";
 
-static ledc_timer_config_t ledc_timer;
-static ledc_channel_config_t ledc_channel;
-static ledc_cbs_t callbacks;
-static SemaphoreHandle_t counting_sem;
+// Global handle for the FreeRTOS Queue
+QueueHandle_t xLedQueue = NULL;
+static uint8_t active_priority = PRIORITY_LOW;
 
-static const char *TAG = "LED_CONTROLLER";
-
-static IRAM_ATTR bool cb_ledc_fade_end_event(const ledc_cb_param_t *param, void *user_arg)
-{
-    BaseType_t taskAwoken = pdFALSE;
-
-    if (param->event == LEDC_FADE_END_EVT) {
-        SemaphoreHandle_t counting_sem = (SemaphoreHandle_t) user_arg;
-        xSemaphoreGiveFromISR(counting_sem, &taskAwoken);
-    }
-
-    return (taskAwoken == pdTRUE);
+/**
+ * Helper function to update LEDC duty cycle hardware.
+ */
+static void set_hardware_duty(uint32_t duty) {
+  if (duty > LEDC_MAX_DUTY)
+    duty = LEDC_MAX_DUTY;
+  ledc_set_duty(LEDC_MODE, LEDC_CHANNEL, duty);
+  ledc_update_duty(LEDC_MODE, LEDC_CHANNEL);
 }
 
+/**
+ * Takes an led_cmd_t type command and pushes it onto the LedQueue based on
+ * priority.
+ */
+BaseType_t led_driver_send_cmd(const led_cmd_t *cmd) {
+  if (xLedQueue == NULL) {
+    ESP_LOGE(TAG, "Led command recieved with an uninitialized LedQueue");
+    return pdFALSE;
+  }
+  led_cmd_t pending_cmd; // Temporary variable to hold the next command.
+  bool queue_not_empty;
+  queue_not_empty = (xQueuePeek(xLedQueue, &pending_cmd, 0) == pdTRUE);
+
+  if (queue_not_empty && pending_cmd.priority <= cmd->priority) {
+    xQueueSendToFront(xLedQueue, cmd,
+                      pdMS_TO_TICKS(10)); // arbitrary 10ms timeout
+  } else {
+    xQueueSendToBack(xLedQueue, cmd, pdMS_TO_TICKS(10));
+  }
+  return pdTRUE;
+}
+
+/**
+ * Returns true if next command in xLedQueue is a higher priority than the
+ * currently running priority. Returns false otherwise.
+ */
+static bool check_for_preemption(void) {
+  led_cmd_t pending_cmd;
+  bool queue_not_empty;
+  queue_not_empty = (xQueuePeek(xLedQueue, &pending_cmd, 0) == pdTRUE);
+  if (queue_not_empty && pending_cmd.priority >= active_priority) {
+    ESP_LOGI(TAG,
+             "Overriding current command due to new higher priority command");
+    return true;
+  }
+  return false;
+}
+
+/**
+ *
+ */
+static void led_task(void *pvParameters) {
+  led_cmd_t current_cmd;
+
+  while (1) {
+    xQueueReceive(xLedQueue, &current_cmd, portMAX_DELAY);
+    active_priority = current_cmd.priority;
+
+    switch (current_cmd.action) {
+
+    case LED_ACTION_ON:
+      ESP_LOGI(TAG, "Led turning on for %ds", LEDC_SIGNAL_TIME_SEC);
+      set_hardware_duty(LEDC_MAX_DUTY);
+      for (int times = 0; times < LEDC_SIGNAL_TIME_MS / 100; times += 1) {
+        vTaskDelay(pdMS_TO_TICKS(100)); // 100 ms interval of checking queue
+        if (check_for_preemption())
+          break;
+      }
+      set_hardware_duty(0);
+      break;
+
+    case LED_ACTION_OFF:
+      ESP_LOGI(TAG, "Led turning off");
+      set_hardware_duty(0);
+      break;
+
+    case LED_ACTION_SET_DUTY:
+      ESP_LOGI(TAG, "Led being set to %d for %ds", current_cmd.duty,
+               LEDC_SIGNAL_TIME_SEC);
+      for (int times = 0; times < LEDC_SIGNAL_TIME_MS / 100; times += 1) {
+        set_hardware_duty(current_cmd.duty);
+        vTaskDelay(pdMS_TO_TICKS(100));
+        if (check_for_preemption())
+          break;
+      }
+      set_hardware_duty(0);
+      break;
+
+    case LED_ACTION_FLASH:
+      ESP_LOGI(TAG, "Flashing led for %ds at duty %d", LEDC_SIGNAL_TIME_SEC,
+               current_cmd.duty);
+      for (int times2 = 0; times2 < LEDC_SIGNAL_TIME_MS / 500; times2 += 1) {
+        set_hardware_duty(current_cmd.duty);
+        vTaskDelay(pdMS_TO_TICKS(500));
+        set_hardware_duty(0);
+        if (check_for_preemption())
+          break;
+      }
+      set_hardware_duty(0);
+      break;
+
+    case LED_ACTION_PULSE:
+      ESP_LOGI(TAG, "Pulsing led for %ds to duty %d", LEDC_SIGNAL_TIME_SEC,
+               current_cmd.duty);
+      for (int times = 0; times < 10; times += 1) {
+        ledc_set_fade_with_time(LEDC_MODE, LEDC_CHANNEL, current_cmd.duty,
+                                LEDC_SIGNAL_TIME_MS / 10);
+        ledc_fade_start(LEDC_MODE, LEDC_CHANNEL, LEDC_FADE_NO_WAIT);
+        vTaskDelay(pdMS_TO_TICKS(LEDC_SIGNAL_TIME_MS / 20));
+        if (check_for_preemption())
+          break;
+        ledc_set_fade_with_time(LEDC_MODE, LEDC_CHANNEL, 0,
+                                LEDC_SIGNAL_TIME_MS / 10);
+        ledc_fade_start(LEDC_MODE, LEDC_CHANNEL, LEDC_FADE_NO_WAIT);
+        vTaskDelay(pdMS_TO_TICKS(LEDC_SIGNAL_TIME_MS / 20));
+        if (check_for_preemption())
+          break;
+      }
+      set_hardware_duty(0);
+      break;
+    }
+    vTaskDelay(pdMS_TO_TICKS(100));
+    active_priority = PRIORITY_LOW;
+  }
+}
+
+/**
+ * Initializes the LEDC timers and fade handlers, and initializes the driver
+ * task.
+ */
 void led_driver_init(void) {
-    ledc_timer_config_t ledc_timer = {
-        .duty_resolution = LEDC_TIMER_10_BIT, // resolution of PWM duty
-        .freq_hz = 32000,                      // frequency of PWM signal
-        .speed_mode = LEDC_LS_MODE,           // timer mode
-        .timer_num = LEDC_LS_TIMER,            // timer index
-        .clk_cfg = LEDC_AUTO_CLK,              // Auto select the source clock
-    };
-    ledc_timer_config(&ledc_timer);
-        
-    ledc_channel_config_t ledc_channel = {
-        .channel    = LEDC_LS_CH0_CHANNEL,
-        .duty       = 0,
-        .gpio_num   = LEDC_LS_CH0_GPIO,
-        .speed_mode = LEDC_LS_MODE,
-        .hpoint     = 0,
-        .timer_sel  = LEDC_LS_TIMER,
-        .flags.output_invert = 0
-    };
+  // Hardware Setup: LEDC Timer
+  ledc_timer_config_t ledc_timer = {.duty_resolution = LEDC_DUTY_RES,
+                                    .freq_hz = LEDC_FREQ_HZ,
+                                    .speed_mode = LEDC_MODE,
+                                    .timer_num = LEDC_TIMER,
+                                    .clk_cfg = LEDC_AUTO_CLK};
+  ledc_timer_config(&ledc_timer);
 
-    ledc_channel_config(&ledc_channel);
+  // Hardware Setup: LEDC Channel
+  ledc_channel_config_t ledc_channel = {.channel = LEDC_CHANNEL,
+                                        .duty = 0,
+                                        .gpio_num = LEDC_GPIO,
+                                        .speed_mode = LEDC_MODE,
+                                        .hpoint = 0,
+                                        .timer_sel = LEDC_TIMER};
+  ledc_channel_config(&ledc_channel);
 
-    // Initialize fade service.
-    ledc_fade_func_install(0);
-    ledc_cbs_t callbacks = {
-        .fade_cb = cb_ledc_fade_end_event
-    };
-    SemaphoreHandle_t counting_sem = xSemaphoreCreateCounting(1, 0);
+  ledc_fade_func_install(0);
 
-    ledc_cb_register(ledc_channel.speed_mode, ledc_channel.channel, &callbacks, (void *) counting_sem);
-}
+  xLedQueue = xQueueCreate(CONFIG_SPOTLIGHT_QUEUE_SIZE, sizeof(led_cmd_t));
+  xTaskCreate(led_task, "led_task", 4096, NULL, 5, NULL);
 
-void start_fading(void) {
-    if (ledc_channel == NULL || ledc_timer == NULL) {
-        led_driver_init();
-    }
-    int time = LEDC_TOTAL_DURATION;
-
-    for (int t = 0; t < time; t+= 2*LEDC_FADE_TIME) {
-        ESP_LOGI(TAG, "Fading LED up to duty %d", LEDC_MAX_DUTY);
-        ledc_set_fade_with_time(ledc_channel.speed_mode,
-                                ledc_channel.channel, LEDC_MAX_DUTY, LEDC_FADE_TIME);
-        ledc_fade_start(ledc_channel.speed_mode,
-                        ledc_channel.channel, LEDC_FADE_NO_WAIT);   
-        ESP_LOGI(TAG, "Fading LED down to duty %d", 0);
-        ledc_set_fade_with_time(ledc_channel.speed_mode,
-                                ledc_channel.channel, 0, LEDC_FADE_TIME);
-        ledc_fade_start(ledc_channel.speed_mode,
-                        ledc_channel.channel, LEDC_FADE_NO_WAIT);   
-    }
-
-}
-
-void turn_on(void) {
-    ESP_LOGI(TAG, "Set LED duty to %d", LEDC_MAX_DUTY);
-    ledc_set_duty(ledc_channel.speed_mode, ledc_channel.channel, LEDC_MAX_DUTY);
-    ledc_update_duty(ledc_channel.speed_mode, ledc_channel.channel);
-}
-
-void turn_off(void) {
-    ESP_LOGI(TAG, "Set LED duty to %d", 0);
-    ledc_set_duty(ledc_channel.speed_mode, ledc_channel.channel, 0);
-    ledc_update_duty(ledc_channel.speed_mode, ledc_channel.channel);
+  ESP_LOGI(TAG, "LED Driver hardware initialized on GPIO %d @ %d Hz", LEDC_GPIO,
+           LEDC_FREQ_HZ);
 }

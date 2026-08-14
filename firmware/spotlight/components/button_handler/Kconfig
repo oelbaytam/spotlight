@@ -1,0 +1,17 @@
+menu "Spotlight Button Handler Configuration"
+
+    config SPOTLIGHT_BUTTON_GPIO
+        int "Button Input GPIO Pin"
+        default 9 
+        range 0 48
+        help
+            GPIO pin connected to the physical button (BOOT button is usually GPIO 8 or GPIO 0).
+
+    config SPOTLIGHT_BUTTON_LONG_PRESS_MS
+        int "Long Press Provisioning Hold Time (ms)"
+        default 5000
+        range 2000 15000
+        help
+            Continuous hold time in milliseconds required to trigger SoftAP provisioning mode.
+
+endmenu

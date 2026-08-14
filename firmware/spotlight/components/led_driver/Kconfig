@@ -1,0 +1,38 @@
+menu "Spotlight LED Driver Configuration"
+
+    config SPOTLIGHT_LED_GPIO
+        int "LED Output GPIO Pin"
+        default 10
+        range 0 48
+        help
+            GPIO pin connected to the Spotlight LED. Default is GPIO 10.
+
+    config SPOTLIGHT_PWM_FREQ_HZ
+        int "LEDC PWM Frequency (Hz)"
+        default 32000
+        range 100 100000
+        help
+            Frequency of the PWM output signal in Hz. Default is 32000 Hz (32 kHz).
+
+    config SPOTLIGHT_LEDC_TIMER
+        int "LEDC Timer Index"
+        default 0
+        range 0 3
+        help
+            LEDC hardware timer to use (0 to 3).
+
+    config SPOTLIGHT_QUEUE_SIZE
+        int "FreeRTOS LED Queue Capacity"
+        default 10
+        range 1 50
+        help
+            Number of command messages the LED Queue can store before blocking.
+
+    config SPOTLIGHT_TASK_STACK_SIZE
+        int "LED Task Stack Size (bytes)"
+        default 4096
+        range 2048 16384
+        help
+            Stack size allocated to the led_task in bytes.
+
+endmenu
