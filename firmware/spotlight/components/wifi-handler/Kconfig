@@ -1,0 +1,16 @@
+menu "Spotlight Wi-Fi & Provisioning Configuration"
+
+    config SPOTLIGHT_AP_SSID
+        string "SoftAP Network Name (SSID)"
+        default "Spotlight-Setup"
+        help
+            SSID network name broadcast by the ESP32 during SoftAP provisioning mode.
+
+    config SPOTLIGHT_AP_CHANNEL
+        int "SoftAP Wi-Fi Channel"
+        default 1
+        range 1 13
+        help
+            Wi-Fi channel (1 to 13) for the SoftAP.
+
+endmenu

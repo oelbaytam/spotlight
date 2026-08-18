@@ -15,6 +15,13 @@ static const char *TAG = "BUTTON_HANDLER";
 static button_long_press_cb_t s_long_press_cb = NULL;
 
 /**
+ * TODO: Convert Button Handler to use hardware IRQ (Interrupt Request).
+ *       The current polling method using vTaskDelay can miss rapid button presses 
+ *       if the CPU is busy with high-priority LED commands. Transition to 
+ *       gpio_install_isr_service() and use a FreeRTOS Queue to prevent blocking.
+ */
+
+/**
  * Button handler task
  * Checks for a pulldown on the button pin, records time.
  * if time > 100ms and time < LONG_PRESS_HOLD_MS:

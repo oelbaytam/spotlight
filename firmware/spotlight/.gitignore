@@ -1,3 +1,21 @@
 build/
 sdkconfig
 sdkconfig.old
+
+# ESP-IDF Build & Dependencies
+build/
+managed_components/
+dependencies.lock
+sdkconfig
+sdkconfig.old
+
+# Python
+__pycache__/
+*.pyc
+
+# IDEs & OS
+.vscode/
+.idea/
+.DS_Store
+.cache 
+.clangd 

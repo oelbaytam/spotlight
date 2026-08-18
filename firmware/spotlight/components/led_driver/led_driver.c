@@ -37,6 +37,13 @@ static void set_hardware_duty(uint32_t duty) {
 }
 
 /**
+ * TODO: Implement Queue Overflow Protection.
+ *       Ensure that led_driver_send_cmd gracefully handles scenarios where the 
+ *       MQTT client gets flooded with commands (e.g. 1000 msgs/sec), preventing 
+ *       the FreeRTOS queue from overflowing or dropping high priority alerts.
+ */
+
+/**
  * Takes an led_cmd_t type command and pushes it onto the LedQueue based on
  * priority.
  */
@@ -75,7 +82,25 @@ static bool check_for_preemption(void) {
 }
 
 /**
- *
+ * Delays for wait_ms while constantly checking for preempting commands.
+ * By polling the queue every 20ms, we guarantee immediate responsiveness
+ * without blocking the FreeRTOS scheduler.
+ */
+static bool wait_with_preemption(uint32_t wait_ms) {
+  uint32_t elapsed = 0;
+  uint32_t step = 20; // 20ms polling interval
+  while (elapsed < wait_ms) {
+    if (check_for_preemption()) {
+      return true; // A new, higher/equal priority command has arrived
+    }
+    vTaskDelay(pdMS_TO_TICKS(step));
+    elapsed += step;
+  }
+  return false;
+}
+
+/**
+ * Main LED Driver Task
  */
 static void led_task(void *pvParameters) {
   led_cmd_t current_cmd;
@@ -83,17 +108,16 @@ static void led_task(void *pvParameters) {
   while (1) {
     xQueueReceive(xLedQueue, &current_cmd, portMAX_DELAY);
     active_priority = current_cmd.priority;
+    
+    // Safety check: prevent divide-by-zero if period wasn't set
+    uint32_t period = current_cmd.period_ms > 0 ? current_cmd.period_ms : 1000;
 
     switch (current_cmd.action) {
 
     case LED_ACTION_ON:
       ESP_LOGI(TAG, "Led turning on for %ds", LEDC_SIGNAL_TIME_SEC);
       set_hardware_duty(LEDC_MAX_DUTY);
-      for (int times = 0; times < LEDC_SIGNAL_TIME_MS / 100; times += 1) {
-        vTaskDelay(pdMS_TO_TICKS(100)); // 100 ms interval of checking queue
-        if (check_for_preemption())
-          break;
-      }
+      wait_with_preemption(LEDC_SIGNAL_TIME_MS);
       set_hardware_duty(0);
       break;
 
@@ -103,51 +127,47 @@ static void led_task(void *pvParameters) {
       break;
 
     case LED_ACTION_SET_DUTY:
-      ESP_LOGI(TAG, "Led being set to %d for %ds", current_cmd.duty,
-               LEDC_SIGNAL_TIME_SEC);
-      for (int times = 0; times < LEDC_SIGNAL_TIME_MS / 100; times += 1) {
-        set_hardware_duty(current_cmd.duty);
-        vTaskDelay(pdMS_TO_TICKS(100));
-        if (check_for_preemption())
-          break;
-      }
+      ESP_LOGI(TAG, "Led being set to %d for %ds", current_cmd.duty, LEDC_SIGNAL_TIME_SEC);
+      set_hardware_duty(current_cmd.duty);
+      wait_with_preemption(LEDC_SIGNAL_TIME_MS);
       set_hardware_duty(0);
       break;
 
     case LED_ACTION_FLASH:
-      ESP_LOGI(TAG, "Flashing led for %ds at duty %d", LEDC_SIGNAL_TIME_SEC,
-               current_cmd.duty);
-      for (int times2 = 0; times2 < LEDC_SIGNAL_TIME_MS / 500; times2 += 1) {
+      ESP_LOGI(TAG, "Flashing led for %ds at duty %d", LEDC_SIGNAL_TIME_SEC, current_cmd.duty);
+      int flash_cycles = LEDC_SIGNAL_TIME_MS / period;
+      for (int i = 0; i < flash_cycles; i++) {
+        // ON Phase
         set_hardware_duty(current_cmd.duty);
-        vTaskDelay(pdMS_TO_TICKS(500));
+        if (wait_with_preemption(period / 2)) break;
+        
+        // OFF Phase
         set_hardware_duty(0);
-        if (check_for_preemption())
-          break;
+        if (wait_with_preemption(period / 2)) break;
       }
       set_hardware_duty(0);
       break;
 
     case LED_ACTION_PULSE:
-      ESP_LOGI(TAG, "Pulsing led for %ds to duty %d", LEDC_SIGNAL_TIME_SEC,
-               current_cmd.duty);
-      for (int times = 0; times < 10; times += 1) {
-        ledc_set_fade_with_time(LEDC_MODE, LEDC_CHANNEL, current_cmd.duty,
-                                LEDC_SIGNAL_TIME_MS / 10);
+      ESP_LOGI(TAG, "Pulsing led for %ds to duty %d", LEDC_SIGNAL_TIME_SEC, current_cmd.duty);
+      int pulse_cycles = LEDC_SIGNAL_TIME_MS / period;
+      for (int i = 0; i < pulse_cycles; i++) {
+        // Fade UP
+        ledc_set_fade_with_time(LEDC_MODE, LEDC_CHANNEL, current_cmd.duty, period / 2);
         ledc_fade_start(LEDC_MODE, LEDC_CHANNEL, LEDC_FADE_NO_WAIT);
-        vTaskDelay(pdMS_TO_TICKS(LEDC_SIGNAL_TIME_MS / 20));
-        if (check_for_preemption())
-          break;
-        ledc_set_fade_with_time(LEDC_MODE, LEDC_CHANNEL, 0,
-                                LEDC_SIGNAL_TIME_MS / 10);
+        if (wait_with_preemption(period / 2)) break;
+
+        // Fade DOWN
+        ledc_set_fade_with_time(LEDC_MODE, LEDC_CHANNEL, 0, period / 2);
         ledc_fade_start(LEDC_MODE, LEDC_CHANNEL, LEDC_FADE_NO_WAIT);
-        vTaskDelay(pdMS_TO_TICKS(LEDC_SIGNAL_TIME_MS / 20));
-        if (check_for_preemption())
-          break;
+        if (wait_with_preemption(period / 2)) break;
       }
       set_hardware_duty(0);
       break;
     }
-    vTaskDelay(pdMS_TO_TICKS(100));
+    
+    // Tiny sleep to allow context switching before reading next item
+    vTaskDelay(pdMS_TO_TICKS(10));
     active_priority = PRIORITY_LOW;
   }
 }

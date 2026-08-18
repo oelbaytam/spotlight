@@ -1,0 +1,9 @@
+menu "MQTT Handler Configuration"
+
+    config SPOTLIGHT_MQTT_TEST_TOPIC
+        string "MQTT Test Topic"
+        default "test/topic"
+        help
+            The default topic to subscribe to for testing the Reaction Engine.
+
+endmenu
